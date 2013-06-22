@@ -38,7 +38,7 @@ void testApp::setupAudioGraph(string ringToneFile, bool muteInput) {
 
 // sets up serial stuff on its own little private queue
 void testApp::setupArduino(int baud) {
-	serialQueue = dispatch_queue_create("com.relay.serial-queue", DISPATCH_QUEUE_SERIAL);
+	serialQueue = dispatch_queue_create("com.relaystudio.arduino-queue", DISPATCH_QUEUE_SERIAL);
 	
 	// attempt to connect to arduino
 	dispatch_sync(serialQueue, ^{
@@ -82,8 +82,6 @@ void testApp::update(){
 	ofVec2f waveSize(ofGetWidth() / 2., ofGetHeight() / 2.);
 	inputTap.getStereoWaveform(leftInWaveform, rightInWaveform, waveSize.x, waveSize.y);
 	outputTap.getStereoWaveform(leftOutWaveform, rightOutWaveform, waveSize.x, waveSize.y);
-	
-	dispatch_sync(serialQueue, ^{cout << (int)arduinoReading << endl;});
 }
 
 void testApp::draw(){
@@ -109,6 +107,13 @@ void testApp::draw(){
 		rightOutWaveform.draw();
 	}
 	ofPopMatrix();
+	
+	ofSetColor(255);
+	__block int reading = 0;
+	dispatch_sync(serialQueue, ^{reading = arduinoReading;});
+	string displayString = "Sensor: ";
+	displayString.append(ofToString((int)reading));
+	ofDrawBitmapString(displayString, 10, 20);
 }
 
 void testApp::exit(){
