@@ -18,13 +18,15 @@ public:
 	void mousePressed(int x, int y, int button);
 	void mouseReleased(int x, int y, int button);
 	void windowResized(int w, int h);
-	void gotMessage(ofMessage msg);
+	void setupAudioGraph(string ringToneFile, bool muteInput);
 	
 	ofxAudioUnitInput input;
 	ofxAudioUnitFilePlayer ringTone;
 	ofxAudioUnitMixer mixer;
 	ofxAudioUnitOutput output;
 	
-	ofxAudioUnitTap debugTap;
-	ofPolyline leftWaveform, rightWaveform;
+	ofxAudioUnitTap inputTap, outputTap;
+	
+	ofPolyline leftOutWaveform, rightOutWaveform;
+	ofPolyline leftInWaveform, rightInWaveform;
 };
