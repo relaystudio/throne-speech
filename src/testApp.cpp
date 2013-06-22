@@ -1,12 +1,24 @@
 #include "testApp.h"
 
+typedef enum {
+	kMicBus      = 0,
+	kRingToneBus = 1
+}
+BusName;
+
 void testApp::setup(){
-	ringTone.setFile(ofFilePath::getAbsolutePath("sound/nokia.wav"));
+	setupAudioGraph("sound/nokia.wav", true);
+	ofSetVerticalSync(true);
+	ofBackground(50);
+}
+
+void testApp::setupAudioGraph(string ringToneFile, bool muteInput) {
+	ringTone.setFile(ofFilePath::getAbsolutePath(ringToneFile));
 	ringTone.loop();
 	
 	mixer.setInputBusCount(2);
-	input.connectTo(inputTap).connectTo(mixer, 0);
-	ringTone.connectTo(mixer, 1);
+	input.connectTo(inputTap).connectTo(mixer, kMicBus);
+	ringTone.connectTo(mixer, kRingToneBus);
 	
 	mixer.connectTo(outputTap).connectTo(output);
 	
@@ -16,10 +28,9 @@ void testApp::setup(){
 	input.start();
 	output.start();
 	
-	mixer.setInputVolume(0, 0); // mute input for now
-	
-	ofSetVerticalSync(true);
-	ofBackground(50);
+	if(muteInput) {
+		mixer.setInputVolume(0, kMicBus);
+	}
 }
 
 void testApp::update(){
@@ -29,7 +40,8 @@ void testApp::update(){
 }
 
 void testApp::draw(){
-
+	ofSetLineWidth(3);
+	
 	// draw input waveforms
 	ofSetColor(100, 100, 255);
 	ofPushMatrix();
