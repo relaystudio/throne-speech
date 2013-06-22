@@ -33,4 +33,8 @@ public:
 	ofPolyline leftInWaveform, rightInWaveform;
 	
 	ofSerial arduino;
+	dispatch_queue_t serialQueue;
+	dispatch_source_t serialTimer;
+	
+	uint8_t arduinoReading;
 };
