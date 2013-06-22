@@ -24,6 +24,8 @@ public:
 	ofxAudioUnitMixer mixer;
 	ofxAudioUnitOutput output;
 	
-	ofxAudioUnitTap debugTap;
-	ofPolyline leftWaveform, rightWaveform;
+	ofxAudioUnitTap inputTap, outputTap;
+	
+	ofPolyline leftOutWaveform, rightOutWaveform;
+	ofPolyline leftInWaveform, rightInWaveform;
 };
