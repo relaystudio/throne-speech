@@ -18,7 +18,9 @@ public:
 	void mousePressed(int x, int y, int button);
 	void mouseReleased(int x, int y, int button);
 	void windowResized(int w, int h);
+	
 	void setupAudioGraph(string ringToneFile, bool muteInput);
+	void setupArduino(int baud);
 	
 	ofxAudioUnitInput input;
 	ofxAudioUnitFilePlayer ringTone;
@@ -29,4 +31,6 @@ public:
 	
 	ofPolyline leftOutWaveform, rightOutWaveform;
 	ofPolyline leftInWaveform, rightInWaveform;
+	
+	ofSerial arduino;
 };

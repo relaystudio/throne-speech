@@ -8,6 +8,7 @@ BusName;
 
 void testApp::setup(){
 	setupAudioGraph("sound/nokia.wav", true);
+	setupArduino(9600);
 	ofSetVerticalSync(true);
 	ofBackground(50);
 }
@@ -30,6 +31,23 @@ void testApp::setupAudioGraph(string ringToneFile, bool muteInput) {
 	
 	if(muteInput) {
 		mixer.setInputVolume(0, kMicBus);
+	}
+}
+
+void testApp::setupArduino(int baud) {
+	vector<ofSerialDeviceInfo> devices = arduino.getDeviceList();
+	bool found = false;
+	bool success = false;
+	for(size_t i = 0; i < devices.size(); ++i) {
+		if(devices[i].getDeviceName().find("tty.usbmodem") != string::npos) {
+			success = arduino.setup(devices[i].getDevicePath(), baud);
+			found = true;
+			break;
+		}
+	}
+	
+	if(!found) {
+		ofLog(OF_LOG_WARNING, "couldn't find arduino");
 	}
 }
 
