@@ -6,7 +6,7 @@ const int remoteSensorRx = 0; // Uno rx1
 const int debugLED = 13; // as ever
 
 long averagedVoltage, summedVoltage, distance = 0; // Distance in Inches
-int average = 60;
+int average = 30;
 bool pulse = true;
 
 void setup() {
@@ -16,7 +16,7 @@ void setup() {
 
 void loop() {
     showRate();    
-    averagedVoltage = 0;
+    summedVoltage = 0;
     
     // Sensor info!
     // ~9.8mV/in at 5v (Vcc/5   12 per inch)
@@ -24,7 +24,7 @@ void loop() {
     for(int i=0;i<average;i++) {
         averagedVoltage = analogRead(hubSensor)/2;    // Arduino analog is 0-1024 so divide by 2
         summedVoltage += averagedVoltage;
-        delay(5);
+        delay(1);
     }
     
     distance = (summedVoltage/average);
