@@ -1,7 +1,15 @@
 #include "testApp.h"
 
 void testApp::setup(){
-	input.connectTo(mixer).connectTo(debugTap).connectTo(output);
+
+	ringTone.setFile(ofFilePath::getAbsolutePath("sound/nokia.wav"));
+	ringTone.loop();
+	
+	mixer.setInputBusCount(2);
+	input.connectTo(mixer, 0);
+	ringTone.connectTo(mixer, 1);
+	
+	mixer.connectTo(debugTap).connectTo(output);
 	
 	input.start();
 	output.start();
@@ -43,4 +51,3 @@ void testApp::mouseDragged(int x, int y, int button){ }
 void testApp::mousePressed(int x, int y, int button){ }
 void testApp::mouseReleased(int x, int y, int button){ }
 void testApp::windowResized(int w, int h){ }
-void testApp::gotMessage(ofMessage msg){ }
