@@ -82,6 +82,9 @@ void testApp::update(){
 	ofVec2f waveSize(ofGetWidth() / 2., ofGetHeight() / 2.);
 	inputTap.getStereoWaveform(leftInWaveform, rightInWaveform, waveSize.x, waveSize.y);
 	outputTap.getStereoWaveform(leftOutWaveform, rightOutWaveform, waveSize.x, waveSize.y);
+	
+	float vol = ofMap(getReading(), 0, 40, 0, 1, true);
+	mixer.setOutputVolume(vol);
 }
 
 void testApp::draw(){
@@ -109,10 +112,8 @@ void testApp::draw(){
 	ofPopMatrix();
 	
 	ofSetColor(255);
-	__block int reading = 0;
-	dispatch_sync(serialQueue, ^{reading = arduinoReading;});
 	string displayString = "Sensor: ";
-	displayString.append(ofToString((int)reading));
+	displayString.append(ofToString(getReading()));
 	ofDrawBitmapString(displayString, 10, 20);
 }
 
@@ -122,6 +123,12 @@ void testApp::exit(){
 	
 	dispatch_suspend(serialTimer);
 	dispatch_sync(serialQueue, ^{arduino.close();});
+}
+
+int testApp::getReading() {
+	__block int reading = 0;
+	dispatch_sync(serialQueue, ^{reading = arduinoReading;});
+	return reading;
 }
 
 void testApp::keyPressed(int key){

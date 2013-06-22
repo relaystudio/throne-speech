@@ -21,6 +21,7 @@ public:
 	
 	void setupAudioGraph(string ringToneFile, bool muteInput);
 	void setupArduino(int baud);
+	int getReading();
 	
 	ofxAudioUnitInput input;
 	ofxAudioUnitFilePlayer ringTone;
