@@ -1,15 +1,36 @@
 #include "testApp.h"
 
 void testApp::setup(){
-
+	input.connectTo(mixer).connectTo(debugTap).connectTo(output);
+	
+	input.start();
+	output.start();
+	
+	ofSetVerticalSync(true);
+	ofBackground(50);
 }
 
 void testApp::update(){
-
+	debugTap.getLeftWaveform(leftWaveform, ofGetWidth(), ofGetHeight() / 2.);
+	debugTap.getRightWaveform(rightWaveform, ofGetWidth(), ofGetHeight() / 2.);
 }
 
 void testApp::draw(){
+	
+	// draw left / right waveforms
+	ofSetColor(255, 100, 100);
+	ofPushMatrix();
+	{
+		leftWaveform.draw();
+		ofTranslate(0, ofGetHeight() / 2.);
+		rightWaveform.draw();
+	}
+	ofPopMatrix();
+}
 
+void testApp::exit(){
+	output.stop();
+	input.stop();
 }
 
 void testApp::keyPressed(int key){

@@ -9,6 +9,7 @@ public:
 	void setup();
 	void update();
 	void draw();
+	void exit();
 	
 	void keyPressed  (int key);
 	void keyReleased(int key);
@@ -19,6 +20,11 @@ public:
 	void windowResized(int w, int h);
 	void gotMessage(ofMessage msg);
 	
+	ofxAudioUnitInput input;
+	ofxAudioUnitFilePlayer ringTone;
+	ofxAudioUnitMixer mixer;
+	ofxAudioUnitOutput output;
 	
-		
+	ofxAudioUnitTap debugTap;
+	ofPolyline leftWaveform, rightWaveform;
 };
