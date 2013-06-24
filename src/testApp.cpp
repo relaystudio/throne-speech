@@ -6,11 +6,13 @@ typedef enum {
 }
 BusName;
 
-void testApp::setup(){
+void testApp::setup() {
 	setupAudioGraph("sound/nokia.wav", true);
 	setupArduino(9600);
 	ofSetVerticalSync(true);
 	ofBackground(50);
+	
+	arduino.flush();
 }
 
 void testApp::setupAudioGraph(string ringToneFile, bool muteInput) {
@@ -34,27 +36,55 @@ void testApp::setupAudioGraph(string ringToneFile, bool muteInput) {
 	}
 }
 
+// sets up serial stuff on its own little private queue
 void testApp::setupArduino(int baud) {
-	vector<ofSerialDeviceInfo> devices = arduino.getDeviceList();
-	bool found = false;
-	bool success = false;
-	for(size_t i = 0; i < devices.size(); ++i) {
-		if(devices[i].getDeviceName().find("tty.usbmodem") != string::npos) {
-			success = arduino.setup(devices[i].getDevicePath(), baud);
-			found = true;
-			break;
+	serialQueue = dispatch_queue_create("com.relaystudio.arduino-queue", DISPATCH_QUEUE_SERIAL);
+	
+	// attempt to connect to arduino
+	dispatch_sync(serialQueue, ^{
+		vector<ofSerialDeviceInfo> devices = arduino.getDeviceList();
+		bool found = false;
+		for(size_t i = 0; i < devices.size(); ++i) {
+			if(devices[i].getDeviceName().find("tty.usbmodem") != string::npos) {
+				arduino.setup(devices[i].getDevicePath(), baud);
+				found = true;
+				break;
+			}
 		}
+		
+		if(!found) {
+			ofLog(OF_LOG_WARNING, "couldn't find arduino");
+		}
+	});
+	
+	// setup hardware reading on the serial queue
+	serialTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, serialQueue);
+	if(serialTimer) {
+		const dispatch_time_t interval = 20 * NSEC_PER_MSEC;
+		const dispatch_time_t leeway = 5 * NSEC_PER_MSEC;
+		
+		dispatch_source_set_timer(serialTimer, dispatch_walltime(NULL, 0), interval, leeway);
+		dispatch_source_set_event_handler(serialTimer, ^{
+			const int availableBytes = arduino.available();
+			if(availableBytes > 0) {
+				uint8_t buffer[availableBytes];
+				arduino.readBytes(buffer, availableBytes);
+				arduinoReading = buffer[availableBytes - 1];
+			}
+		});
 	}
 	
-	if(!found) {
-		ofLog(OF_LOG_WARNING, "couldn't find arduino");
-	}
+	dispatch_resume(serialTimer);
 }
 
 void testApp::update(){
+	// get debug waveforms
 	ofVec2f waveSize(ofGetWidth() / 2., ofGetHeight() / 2.);
 	inputTap.getStereoWaveform(leftInWaveform, rightInWaveform, waveSize.x, waveSize.y);
 	outputTap.getStereoWaveform(leftOutWaveform, rightOutWaveform, waveSize.x, waveSize.y);
+	
+	float vol = ofMap(getReading(), 0, 40, 0, 1, true);
+	mixer.setOutputVolume(vol);
 }
 
 void testApp::draw(){
@@ -80,11 +110,25 @@ void testApp::draw(){
 		rightOutWaveform.draw();
 	}
 	ofPopMatrix();
+	
+	ofSetColor(255);
+	string displayString = "Sensor: ";
+	displayString.append(ofToString(getReading()));
+	ofDrawBitmapString(displayString, 10, 20);
 }
 
 void testApp::exit(){
 	output.stop();
 	input.stop();
+	
+	dispatch_suspend(serialTimer);
+	dispatch_sync(serialQueue, ^{arduino.close();});
+}
+
+int testApp::getReading() {
+	__block int reading = 0;
+	dispatch_sync(serialQueue, ^{reading = arduinoReading;});
+	return reading;
 }
 
 void testApp::keyPressed(int key){
