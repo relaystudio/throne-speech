@@ -1,10 +1,9 @@
 #include "testApp.h"
 
-typedef enum {
+enum {
 	kMicBus      = 0,
 	kRingToneBus = 1
-}
-BusName;
+};
 
 void testApp::setup() {
 	setupAudioGraph("sound/nokia.wav", true);
