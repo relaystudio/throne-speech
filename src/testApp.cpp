@@ -84,7 +84,8 @@ void testApp::update(){
 	outputTap.getStereoWaveform(leftOutWaveform, rightOutWaveform, waveSize.x, waveSize.y);
 	
 	float vol = ofMap(getReading(), 0, 40, 0, 1, true);
-	mixer.setOutputVolume(vol);
+	mixer.setInputVolume(1 - vol, kMicBus);
+	mixer.setInputVolume(vol, kRingToneBus);
 }
 
 void testApp::draw(){
