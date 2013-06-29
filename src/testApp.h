@@ -19,13 +19,14 @@ public:
 	void mouseReleased(int x, int y, int button);
 	void windowResized(int w, int h);
 	
-	void setupAudioGraph(string ringToneFile, bool muteInput);
+	void setupAudioGraph(string ringToneFile);
 	void setupArduino(int baud);
-	int getReading();
+	
+	int getReading(int sensor);
 	
 	ofxAudioUnitInput input;
 	ofxAudioUnitFilePlayer ringTone;
-	ofxAudioUnitMixer mixer;
+	ofxAudioUnitMatrixMixer mixer;
 	ofxAudioUnitOutput output;
 	
 	ofxAudioUnitTap inputTap, outputTap;

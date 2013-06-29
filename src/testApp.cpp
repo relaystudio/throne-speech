@@ -1,12 +1,13 @@
 #include "testApp.h"
+#include "ofxAudioUnitUtils.h"
 
 enum {
-	kMicBus      = 0,
-	kRingToneBus = 1
+	kMicBus  = 0,
+	kRingBus = 1
 };
 
 void testApp::setup() {
-	setupAudioGraph("sound/nokia.wav", true);
+	setupAudioGraph("sound/nokia.wav");
 	setupArduino(9600);
 	ofSetVerticalSync(true);
 	ofBackground(50);
@@ -14,13 +15,13 @@ void testApp::setup() {
 	arduino.flush();
 }
 
-void testApp::setupAudioGraph(string ringToneFile, bool muteInput) {
+void testApp::setupAudioGraph(string ringToneFile) {
 	ringTone.setFile(ofFilePath::getAbsolutePath(ringToneFile));
 	ringTone.loop();
 	
-	mixer.setInputBusCount(2);
+	mixer.setChannelLayout(2, 1);
 	input.connectTo(inputTap).connectTo(mixer, kMicBus);
-	ringTone.connectTo(mixer, kRingToneBus);
+	ringTone.connectTo(mixer, kRingBus);
 	
 	mixer.connectTo(outputTap).connectTo(output);
 	
@@ -29,10 +30,6 @@ void testApp::setupAudioGraph(string ringToneFile, bool muteInput) {
 	
 	input.start();
 	output.start();
-	
-	if(muteInput) {
-		mixer.setInputVolume(0, kMicBus);
-	}
 }
 
 // sets up serial stuff on its own little private queue
@@ -64,6 +61,8 @@ void testApp::setupArduino(int baud) {
 		
 		dispatch_source_set_timer(serialTimer, dispatch_walltime(NULL, 0), interval, leeway);
 		dispatch_source_set_event_handler(serialTimer, ^{
+			if(!arduino.isInitialized()) return;
+			
 			const int availableBytes = arduino.available();
 			if(availableBytes > 0) {
 				uint8_t buffer[availableBytes];
@@ -82,9 +81,42 @@ void testApp::update(){
 	inputTap.getStereoWaveform(leftInWaveform, rightInWaveform, waveSize.x, waveSize.y);
 	outputTap.getStereoWaveform(leftOutWaveform, rightOutWaveform, waveSize.x, waveSize.y);
 	
-	float vol = ofMap(getReading(), 0, 40, 0, 1, true);
-	mixer.setInputVolume(1 - vol, kMicBus);
-	mixer.setInputVolume(vol, kRingToneBus);
+	float readings[2] = {
+		ofMap(getReading(0), 0, 40, 0, 1, true),
+		ofMap(getReading(1), 0, 40, 0, 1, true)
+	};
+	
+	// to make sense of this, see the docs on kAudioUnitProperty_MatrixLevels
+	const size_t inChannels  = 4;
+	const size_t outChannels = 2;
+	float levels[inChannels + 1][outChannels + 1] = {0};
+	
+	// setting global volume to 1
+	levels[inChannels][outChannels] = 1;
+	
+	// setting input of every channel to 1
+	for(size_t i = 0; i < inChannels + 1; i++) {
+		levels[i][outChannels] = 1;
+	}
+	
+	// setting output of every channel to 1
+	for(size_t i = 0; i < outChannels + 1; i++) {
+		levels[inChannels][i] = 1;
+	}
+	
+	levels[kMicBus * 2][0]  = 1 - readings[0];
+	levels[kRingBus * 2][0] = readings[0];
+	
+	levels[kMicBus * 2][1]  = 1 - readings[1];
+	levels[kRingBus * 2][1] = readings[1];
+	
+	OFXAU_PRINT(AudioUnitSetProperty(mixer,
+									 kAudioUnitProperty_MatrixLevels,
+									 kAudioUnitScope_Global,
+									 0,
+									 levels,
+									 sizeof(levels)),
+				"setting matrix mixer levels");
 }
 
 void testApp::draw(){
@@ -112,8 +144,11 @@ void testApp::draw(){
 	ofPopMatrix();
 	
 	ofSetColor(255);
-	string displayString = "Sensor: ";
-	displayString.append(ofToString(getReading()));
+	string displayString = "Sensors [";
+	displayString.append(ofToString(getReading(0)));
+	displayString.append(",");
+	displayString.append(ofToString(getReading(1)));
+	displayString.append("]");
 	ofDrawBitmapString(displayString, 10, 20);
 }
 
@@ -125,7 +160,7 @@ void testApp::exit(){
 	dispatch_sync(serialQueue, ^{arduino.close();});
 }
 
-int testApp::getReading() {
+int testApp::getReading(int sensor) {
 	__block int reading = 0;
 	dispatch_sync(serialQueue, ^{reading = arduinoReading;});
 	return reading;
