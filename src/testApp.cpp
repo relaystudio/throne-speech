@@ -64,10 +64,22 @@ void testApp::setupArduino(int baud) {
 			if(!arduino.isInitialized()) return;
 			
 			const int availableBytes = arduino.available();
+            /*
 			if(availableBytes > 0) {
 				uint8_t buffer[availableBytes];
 				arduino.readBytes(buffer, availableBytes);
 				arduinoReading = buffer[availableBytes - 1];
+			} */
+            
+            if(availableBytes > 4) {
+				uint8_t buffer[availableBytes];
+				arduino.readBytes(buffer, availableBytes);
+                
+                // Check if analog or Remote
+                if(buffer[1] == 'A')
+                    analogReading = buffer[4];
+                else if(buffer[1] == 'B')
+                    remoteReading = buffer[4];
 			}
 		});
 	}
@@ -160,9 +172,22 @@ void testApp::exit(){
 	dispatch_sync(serialQueue, ^{arduino.close();});
 }
 
-int testApp::getReading(int sensor) {
+int[] testApp::getReading(int sensor) {
 	__block int reading = 0;
-	dispatch_sync(serialQueue, ^{reading = arduinoReading;});
+	dispatch_sync(serialQueue, ^{
+        switch(sensor) {
+            case 0:
+                reading = analogReading;
+                break;
+            case 1:
+                reading = remoteReading;
+                break;
+            default:
+                reading = -1;
+                ofLog() << "No sensor";
+                break;
+        };
+    });
 	return reading;
 }
 

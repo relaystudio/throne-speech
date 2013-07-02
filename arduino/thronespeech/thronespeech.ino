@@ -43,7 +43,7 @@ void sendSample(int _data, int _id) {
     Serial.write(_id);
     Serial.write('D');
     Serial.write(data);
-    Serial.write('\n');
+    Serial.write('\r');
 }
 
 long getAveragedAnalog() {
@@ -51,11 +51,6 @@ long getAveragedAnalog() {
     // ~9.8mV/in at 5v (Vcc/5   12 per inch)
     // Smooth samples
     int summedVoltage,averagedVoltage = 0;
-//    for(int i=0;i<average;i++) {
-//        averagedVoltage = analogRead(hubSensor)/2;    // Arduino analog is 0-1024 so divide by 2
-//        summedVoltage += averagedVoltage;
-//        delay(5);
-//    }
     
     for(int i=0;i<average;i++) {
         rangeValue[i] = analogRead(hubSensor)/2;
@@ -80,7 +75,6 @@ long getAveragedRemote() {
             while (index < 3)  //read next three character for range from sensor
             {
                 inData[index] = remoteSensor.read();
-                //Serial.println(inData[index]); //Debug line
                 
                 index++;  // Increment where to write next
                 if(index>4) break; // Precaution

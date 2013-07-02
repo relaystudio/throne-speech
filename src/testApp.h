@@ -32,5 +32,6 @@ public:
 	dispatch_queue_t serialQueue;
 	dispatch_source_t serialTimer;
 	
-	uint8_t arduinoReading;
+	uint8_t analogReading;
+    uint8_t remoteReading;
 };
