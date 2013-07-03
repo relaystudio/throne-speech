@@ -6,16 +6,18 @@ enum {
 	kRingBus = 1
 };
 
+const float interactionTimeout = 15;
+const float threshold = 0.25;
+
 void testApp::setup() {
 	setupAudioGraph("sound/nokia.wav");
-	setupArduino(9600);
 	ofSetVerticalSync(true);
 	ofBackground(50);
-	
-	arduino.flush();
 }
 
 void testApp::setupAudioGraph(string ringToneFile) {
+	reverb = ofxAudioUnit('aufx', 'mrev', 'appl');
+	
 	ringTone.setFile(ofFilePath::getAbsolutePath(ringToneFile));
 	ringTone.loop();
 	
@@ -23,7 +25,7 @@ void testApp::setupAudioGraph(string ringToneFile) {
 	input.connectTo(inputTap).connectTo(mixer, kMicBus);
 	ringTone.connectTo(mixer, kRingBus);
 	
-	mixer.connectTo(outputTap).connectTo(output);
+	mixer.connectTo(outputTap).connectTo(reverb).connectTo(output);
 	
 	inputTap.setBufferLength(512);
 	outputTap.setBufferLength(512);
@@ -32,73 +34,13 @@ void testApp::setupAudioGraph(string ringToneFile) {
 	output.start();
 }
 
-// sets up serial stuff on its own little private queue
-void testApp::setupArduino(int baud) {
-	serialQueue = dispatch_queue_create("com.relaystudio.arduino-queue", DISPATCH_QUEUE_SERIAL);
-	
-	// attempt to connect to arduino
-	dispatch_sync(serialQueue, ^{
-		vector<ofSerialDeviceInfo> devices = arduino.getDeviceList();
-		bool found = false;
-		for(size_t i = 0; i < devices.size(); ++i) {
-			if(devices[i].getDeviceName().find("tty.usbmodem") != string::npos) {
-				arduino.setup(devices[i].getDevicePath(), baud);
-				found = true;
-				break;
-			}
-		}
-		
-		if(!found) {
-			ofLog(OF_LOG_WARNING, "couldn't find arduino");
-		}
-	});
-	
-	// setup hardware reading on the serial queue
-	serialTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, serialQueue);
-	if(serialTimer) {
-		const dispatch_time_t interval = 20 * NSEC_PER_MSEC;
-		const dispatch_time_t leeway = 5 * NSEC_PER_MSEC;
-		
-		dispatch_source_set_timer(serialTimer, dispatch_walltime(NULL, 0), interval, leeway);
-		dispatch_source_set_event_handler(serialTimer, ^{
-			if(!arduino.isInitialized()) return;
-			
-			const int availableBytes = arduino.available();
-            /*
-			if(availableBytes > 0) {
-				uint8_t buffer[availableBytes];
-				arduino.readBytes(buffer, availableBytes);
-				arduinoReading = buffer[availableBytes - 1];
-			} */
-            
-            if(availableBytes > 4) {
-				uint8_t buffer[availableBytes];
-				arduino.readBytes(buffer, availableBytes);
-                
-                // Check if analog or Remote
-                if(buffer[1] == 'A')
-                    analogReading = buffer[4];
-                else if(buffer[1] == 'B')
-                    remoteReading = buffer[4];
-			}
-		});
-	}
-	
-	dispatch_resume(serialTimer);
-}
-
 void testApp::update(){
 	// get debug waveforms
 	ofVec2f waveSize(ofGetWidth() / 2., ofGetHeight() / 2.);
 	inputTap.getStereoWaveform(leftInWaveform, rightInWaveform, waveSize.x, waveSize.y);
 	outputTap.getStereoWaveform(leftOutWaveform, rightOutWaveform, waveSize.x, waveSize.y);
 	
-	float readings[2] = {
-		ofMap(getReading(0), 0, 40, 0, 1, true),
-		ofMap(getReading(1), 0, 40, 0, 1, true)
-	};
-	
-	// to make sense of this, see the docs on kAudioUnitProperty_MatrixLevels
+	// to make sense of the following, see the docs on kAudioUnitProperty_MatrixLevels
 	const size_t inChannels  = 4;
 	const size_t outChannels = 2;
 	float levels[inChannels + 1][outChannels + 1] = {0};
@@ -116,11 +58,22 @@ void testApp::update(){
 		levels[inChannels][i] = 1;
 	}
 	
-	levels[kMicBus * 2][0]  = 1 - readings[0];
-	levels[kRingBus * 2][0] = readings[0];
+	const float currentTime = ofGetElapsedTimef();
 	
-	levels[kMicBus * 2][1]  = 1 - readings[1];
-	levels[kRingBus * 2][1] = readings[1];
+	if(inputTap.getLeftChannelRMS()  > threshold ||
+	   inputTap.getRightChannelRMS() > threshold)
+	{
+		lastActivation = currentTime;
+	}
+	
+	bool shouldRing = (currentTime - lastActivation) > interactionTimeout;
+	
+	// set levels of mic / ring tone per channel
+	levels[kMicBus  * 2][0] = shouldRing ? 0 : 1;
+	levels[kRingBus * 2][0] = shouldRing ? 1 : 0;
+	
+	levels[kMicBus  * 2 + 1][1] = shouldRing ? 0 : 1;
+	levels[kRingBus * 2][1] = shouldRing ? 1 : 0;
 	
 	OFXAU_PRINT(AudioUnitSetProperty(mixer,
 									 kAudioUnitProperty_MatrixLevels,
@@ -155,40 +108,13 @@ void testApp::draw(){
 	}
 	ofPopMatrix();
 	
-	ofSetColor(255);
-	string displayString = "Sensors [";
-	displayString.append(ofToString(getReading(0)));
-	displayString.append(",");
-	displayString.append(ofToString(getReading(1)));
-	displayString.append("]");
-	ofDrawBitmapString(displayString, 10, 20);
+	ofDrawBitmapStringHighlight(ofToString(lastActivation), 10, 30);
+	ofDrawBitmapStringHighlight(ofToString(ofGetElapsedTimef()), 10, 50);
 }
 
 void testApp::exit(){
 	output.stop();
 	input.stop();
-	
-	dispatch_suspend(serialTimer);
-	dispatch_sync(serialQueue, ^{arduino.close();});
-}
-
-int[] testApp::getReading(int sensor) {
-	__block int reading = 0;
-	dispatch_sync(serialQueue, ^{
-        switch(sensor) {
-            case 0:
-                reading = analogReading;
-                break;
-            case 1:
-                reading = remoteReading;
-                break;
-            default:
-                reading = -1;
-                ofLog() << "No sensor";
-                break;
-        };
-    });
-	return reading;
 }
 
 void testApp::keyPressed(int key){
