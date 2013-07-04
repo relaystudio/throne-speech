@@ -114,8 +114,20 @@ void testApp::draw() {
 	}
 	ofPopMatrix();
 	
-	ofDrawBitmapStringHighlight(ofToString(lastActivation), 10, 30);
-	ofDrawBitmapStringHighlight(ofToString(ofGetElapsedTimef()), 10, 50);
+	float curTime = ofGetElapsedTimef();
+	string last = "Last trigger : ";
+	last.append(ofToString(lastActivation));
+	
+	string current = "Current time : ";
+	current.append(ofToString(curTime));
+	
+	string timeLeftString = "Time til shit's ringin : "; // it's a pun
+	float timeLeft = interactionTimeout - (curTime - lastActivation);
+	timeLeftString.append( timeLeft > 0 ? ofToString(timeLeft) : "NOW");
+	
+	ofDrawBitmapStringHighlight(last, 10, 30);
+	ofDrawBitmapStringHighlight(current, 10, 50);
+	ofDrawBitmapStringHighlight(timeLeftString, 10, 70);
 }
 
 void testApp::exit() {
