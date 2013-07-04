@@ -12,13 +12,14 @@ public:
 	void exit();
 	
 	void keyPressed (int key);
-	void setupAudioGraph(string ringToneFile);
+	void setupAudioGraph(const string &ringToneFile);
 	
 	ofxAudioUnitInput input;
 	ofxAudioUnitFilePlayer ringTone;
 	ofxAudioUnitMatrixMixer mixer;
 	ofxAudioUnitOutput output;
 	ofxAudioUnit reverb;
+	ofxAudioUnit eq;
 	
 	ofxAudioUnitTap inputTap, outputTap;
 	

@@ -6,23 +6,31 @@ enum {
 	kRingBus = 1
 };
 
-const float interactionTimeout = 15;
-const float threshold = 0.25;
+const float  interactionTimeout = 15;
+const float  threshold = 0.25;
+
+const string ringTonePath = "sound/nokia.wav";
+const string reverbPreset = "reverb";
+const string eqPreset = "eq";
 
 void testApp::setup() {
-	setupAudioGraph("sound/nokia.wav");
+	setupAudioGraph(ringTonePath);
 	ofSetVerticalSync(true);
 	ofBackground(50);
 }
 
-void testApp::setupAudioGraph(string ringToneFile) {
-	reverb = ofxAudioUnit('aufx', 'mrev', 'appl');
+void testApp::setupAudioGraph(const string &ringTonePath) {
+	reverb = ofxAudioUnit(kAudioUnitType_Effect, kAudioUnitSubType_MatrixReverb);
+	eq = ofxAudioUnit(kAudioUnitType_Effect, kAudioUnitSubType_AUFilter);
 	
-	ringTone.setFile(ofFilePath::getAbsolutePath(ringToneFile));
+	reverb.loadCustomPreset(reverbPreset);
+	eq.loadCustomPreset(eqPreset);
+	
+	ringTone.setFile(ofFilePath::getAbsolutePath(ringTonePath));
 	ringTone.loop();
 	
 	mixer.setChannelLayout(2, 1);
-	input.connectTo(inputTap).connectTo(mixer, kMicBus);
+	input.connectTo(eq).connectTo(inputTap).connectTo(mixer, kMicBus);
 	ringTone.connectTo(mixer, kRingBus);
 	
 	mixer.connectTo(outputTap).connectTo(reverb).connectTo(output);
@@ -34,7 +42,8 @@ void testApp::setupAudioGraph(string ringToneFile) {
 	output.start();
 }
 
-void testApp::update(){
+void testApp::update() {
+	
 	// get debug waveforms
 	ofVec2f waveSize(ofGetWidth() / 2., ofGetHeight() / 2.);
 	inputTap.getStereoWaveform(leftInWaveform, rightInWaveform, waveSize.x, waveSize.y);
@@ -68,12 +77,9 @@ void testApp::update(){
 	
 	bool shouldRing = (currentTime - lastActivation) > interactionTimeout;
 	
-	// set levels of mic / ring tone per channel
-	levels[kMicBus  * 2][0] = shouldRing ? 0 : 1;
-	levels[kRingBus * 2][0] = shouldRing ? 1 : 0;
-	
-	levels[kMicBus  * 2 + 1][1] = shouldRing ? 0 : 1;
-	levels[kRingBus * 2][1] = shouldRing ? 1 : 0;
+	// set levels of mic / ring tone
+	levels[kMicBus  * 2][0] = levels[kMicBus * 2 + 1][1] = shouldRing ? 0 : 1;
+	levels[kRingBus * 2][0] = levels[kRingBus * 2][1]    = shouldRing ? 1 : 0;
 	
 	OFXAU_PRINT(AudioUnitSetProperty(mixer,
 									 kAudioUnitProperty_MatrixLevels,
@@ -84,7 +90,7 @@ void testApp::update(){
 				"setting matrix mixer levels");
 }
 
-void testApp::draw(){
+void testApp::draw() {
 	ofSetLineWidth(3);
 	
 	// draw input waveforms
@@ -112,11 +118,14 @@ void testApp::draw(){
 	ofDrawBitmapStringHighlight(ofToString(ofGetElapsedTimef()), 10, 50);
 }
 
-void testApp::exit(){
+void testApp::exit() {
 	output.stop();
 	input.stop();
 }
 
-void testApp::keyPressed(int key){
-
+void testApp::keyPressed(int key) {
+	if(key == 's') {
+		eq.saveCustomPreset(eqPreset);
+		reverb.saveCustomPreset(reverbPreset);
+	}
 }
