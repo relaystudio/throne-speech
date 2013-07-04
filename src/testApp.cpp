@@ -7,7 +7,7 @@ enum {
 };
 
 const float  interactionTimeout = 15;
-const float  threshold = 0.25;
+const float  threshold = 0.15;
 
 const string ringTonePath = "sound/nokia.wav";
 const string reverbPreset = "reverb";
@@ -35,8 +35,8 @@ void testApp::setupAudioGraph(const string &ringTonePath) {
 	
 	mixer.connectTo(outputTap).connectTo(reverb).connectTo(output);
 	
-	inputTap.setBufferLength(512);
-	outputTap.setBufferLength(512);
+	inputTap.setBufferLength(1024);
+	outputTap.setBufferLength(1024);
 	
 	input.start();
 	output.start();
