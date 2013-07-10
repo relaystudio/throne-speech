@@ -6,8 +6,8 @@ enum {
 	kRingBus = 1
 };
 
-const float  interactionTimeout = 15;
-const float  threshold = 0.15;
+const float interactionTimeout = 15;
+const float threshold = 0.1;
 
 const string ringTonePath = "sound/nokia.wav";
 const string reverbPreset = "reverb";
@@ -21,22 +21,19 @@ void testApp::setup() {
 
 void testApp::setupAudioGraph(const string &ringTonePath) {
 	reverb = ofxAudioUnit(kAudioUnitType_Effect, kAudioUnitSubType_MatrixReverb);
-	eq = ofxAudioUnit(kAudioUnitType_Effect, kAudioUnitSubType_AUFilter);
-	
-	reverb.loadCustomPreset(reverbPreset);
-	eq.loadCustomPreset(eqPreset);
-	
 	ringTone.setFile(ofFilePath::getAbsolutePath(ringTonePath));
 	ringTone.loop();
 	
+	output.setDevice("Built-in Output");
+	
 	mixer.setChannelLayout(2, 1);
-	input.connectTo(eq).connectTo(inputTap).connectTo(mixer, kMicBus);
+	input.connectTo(inputTap).connectTo(mixer, kMicBus);
 	ringTone.connectTo(mixer, kRingBus);
 	
-	mixer.connectTo(outputTap).connectTo(reverb).connectTo(output);
+	mixer.connectTo(outputTap).connectTo(output);
 	
 	inputTap.setBufferLength(1024);
-	outputTap.setBufferLength(1024);
+	outputTap.setBufferLength(512);
 	
 	input.start();
 	output.start();
@@ -57,6 +54,9 @@ void testApp::update() {
 	// setting global volume to 1
 	levels[inChannels][outChannels] = 1;
 	
+	float leftRMS  = inputTap.getLeftChannelRMS();
+	float rightRMS = inputTap.getRightChannelRMS();
+	
 	// setting input of every channel to 1
 	for(size_t i = 0; i < inChannels + 1; i++) {
 		levels[i][outChannels] = 1;
@@ -69,8 +69,7 @@ void testApp::update() {
 	
 	const float currentTime = ofGetElapsedTimef();
 	
-	if(inputTap.getLeftChannelRMS()  > threshold ||
-	   inputTap.getRightChannelRMS() > threshold)
+	if(leftRMS > threshold || rightRMS > threshold)
 	{
 		lastActivation = currentTime;
 	}
@@ -78,8 +77,10 @@ void testApp::update() {
 	bool shouldRing = (currentTime - lastActivation) > interactionTimeout;
 	
 	// set levels of mic / ring tone
-	levels[kMicBus  * 2][0] = levels[kMicBus * 2 + 1][1] = shouldRing ? 0 : 1;
-	levels[kRingBus * 2][0] = levels[kRingBus * 2][1]    = shouldRing ? 1 : 0;
+	levels[kMicBus * 2][0]     = shouldRing ? 0 : 1;
+	levels[kMicBus * 2 + 1][1] = shouldRing ? 0 : 1;
+	
+	levels[kRingBus * 2][0] = levels[kRingBus * 2][1] = shouldRing ? 2 : 0;
 	
 	OFXAU_PRINT(AudioUnitSetProperty(mixer,
 									 kAudioUnitProperty_MatrixLevels,
@@ -137,7 +138,6 @@ void testApp::exit() {
 
 void testApp::keyPressed(int key) {
 	if(key == 's') {
-		eq.saveCustomPreset(eqPreset);
-		reverb.saveCustomPreset(reverbPreset);
+//		eq.saveCustomPreset(eqPreset);
 	}
 }

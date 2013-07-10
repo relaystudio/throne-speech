@@ -19,7 +19,6 @@ public:
 	ofxAudioUnitMatrixMixer mixer;
 	ofxAudioUnitOutput output;
 	ofxAudioUnit reverb;
-	ofxAudioUnit eq;
 	
 	ofxAudioUnitTap inputTap, outputTap;
 	
